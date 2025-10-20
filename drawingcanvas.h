@@ -9,6 +9,10 @@
 #include <iostream>
 #include <iomanip>
 #include <QPixmap>
+#include <map>
+#include <string>
+#include <sstream>
+#include <functional>
 #include "CustomMatrix.h"
 
 using namespace std;
@@ -29,6 +33,7 @@ public:
     void clearPoints();
     void paintLines();
     void segmentDetection();
+    void reportPatterns();
 
 protected:
     // Overridden method to handle painting on the widget
@@ -38,9 +43,12 @@ protected:
     void mousePressEvent(QMouseEvent *event) override;
 
 private:
+    string PrintPattern(string key);
     // A vector to store all the points drawn by the user
     QVector<QPoint> m_points;
 
     bool isPaintLinesClicked = false;
+    map<string, int> m_patternFrequency;
+    QVector<QPoint> m_segmentCandidates;
 };
 #endif // DRAWINGCANVAS_H

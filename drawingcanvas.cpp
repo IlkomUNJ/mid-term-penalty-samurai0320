@@ -1,4 +1,5 @@
 #include "drawingcanvas.h"
+using namespace std;
 
 DrawingCanvas::DrawingCanvas(QWidget *parent)  {
     // Set a minimum size for the canvas
@@ -10,6 +11,9 @@ DrawingCanvas::DrawingCanvas(QWidget *parent)  {
 void DrawingCanvas::clearPoints(){
     m_points.clear();
     // Trigger a repaint to clear the canvas
+    m_patternFrequency.clear();
+    m_segmentCandidates.clear();
+    isPaintLinesClicked = false;
     update();
 }
 
@@ -23,9 +27,13 @@ void DrawingCanvas::paintLines(){
 }
 
 void DrawingCanvas::segmentDetection(){
+    m_patternFrequency.clear();
+    m_segmentCandidates.clear();
     QPixmap pixmap = this->grab(); //
     QImage image = pixmap.toImage();
 
+
+    cout << " Deteksi Segmen " << endl;
     cout << "image width " << image.width() << endl;
     cout << "image height " << image.height() << endl;
 
@@ -39,17 +47,60 @@ void DrawingCanvas::segmentDetection(){
 
             for(int m=-1;m<=1;m++){
                 for(int n=-1;n<=1;n++){
-                    QRgb rgbValue = image.pixel(i+m, j+n);
-                    local_window[m+1][n+1] = (rgbValue != 0xffffffff);
+                    local_window[m+1][n+1] = (image.pixel(i+m, j+n) != 0xffffffff);
                 }
             }
+            CustomMatrix currentMatrix(local_window);
+            string key = currentMatrix.toString();
+            m_patternFrequency[key]++;
+            if(currentMatrix.isCenterSet() && currentMatrix.getNeighborCount() == 2){
+                m_segmentCandidates.push_back(QPoint(i, j));
+            }
 
-            CustomMatrix mat(local_window);
 
-            windows.push_back(mat);
+            //CustomMatrix mat(local_window);
+
+            //windows.push_back(mat);
         }
     }
-    return;
+    cout << "\n--- Kandidat Segmen (Tugas 3) ---" << endl;
+    cout << "Ditemukan " << m_segmentCandidates.size() << " potensial kandidat." << endl;
+    for (const QPoint& point : m_segmentCandidates) {
+        cout << "Kandidat di: (" << point.x() << ", " << point.y() << ")" << endl;
+    }
+    cout << "\n--- Frekuensi Pola (Tugas 2) ---" << endl;
+    cout << "Total pola unik ditemukan: " << m_patternFrequency.size() << endl;
+    for (const auto& pair : m_patternFrequency) {
+        string patternKey = pair.first;
+        int frequency = pair.second;
+        cout << "\nPola (Ditemukan " << frequency << " kali):" << endl;
+        cout << PrintPattern(patternKey);
+    }
+
+    reportPatterns();
+    update();
+}
+void DrawingCanvas::reportPatterns(){
+    cout << "Laporan Frekuensi Pola" << endl;
+    cout << "Total pola ditemukan: " << m_patternFrequency.size() << endl;
+
+    std::multimap<int, string, std::greater<int>> sortedPatterns;
+    for(const auto& pair : m_patternFrequency){
+        sortedPatterns.insert({pair.second, pair.first});
+    }
+
+    int count = 0;
+    cout << "Menampilkan 20 pola teratas:" << endl;
+    for(const auto& pair : sortedPatterns){
+        if(count++ >= 20) {
+            cout << " dan sisa " << (sortedPatterns.size() - count + 1) << " pola lainnya." << endl;
+            break;
+        }
+        cout << " " << endl;
+        cout << "Jumlah: " << pair.first << endl;
+        cout << "Pola: " << endl;
+        cout << PrintPattern(pair.second);
+    }
 }
 
 void DrawingCanvas::paintEvent(QPaintEvent *event){
@@ -74,10 +125,12 @@ void DrawingCanvas::paintEvent(QPaintEvent *event){
         painter.setPen(pen);
 
         // Set the painter's pen to our custom pen.
-        painter.setPen(pen);
 
+        //for(int i=0;i<m_points.size()-1;i+=2){
+        //cout << m_points[i].x() << endl;
+        //painter.drawLine(m_points[i], m_points[i+1]);
+        //}
         for(int i=0;i<m_points.size()-1;i+=2){
-            //cout << m_points[i].x() << endl;
             painter.drawLine(m_points[i], m_points[i+1]);
         }
         isPaintLinesClicked = false;
@@ -86,6 +139,14 @@ void DrawingCanvas::paintEvent(QPaintEvent *event){
         pen.setColor(Qt::blue);
         painter.setPen(pen);
     }
+    if(!m_segmentCandidates.isEmpty()){
+        pen.setColor(Qt::green);
+        pen.setWidth(1);
+        painter.setPen(pen);
+        for(const QPoint& point : std::as_const(m_segmentCandidates)){
+            painter.drawPoint(point);
+        }
+    }
 }
 
 void DrawingCanvas::mousePressEvent(QMouseEvent *event) {
@@ -93,6 +154,15 @@ void DrawingCanvas::mousePressEvent(QMouseEvent *event) {
     m_points.append(event->pos());
     // Trigger a repaint
     update();
+}
+
+string DrawingCanvas::PrintPattern(string key){
+    stringstream ss;
+    for(int i=0; i<9; i++){
+        ss << key[i] ;
+        if((i+1) % 3 == 0) ss << endl;
+    }
+    return ss.str();
 }
 
 
